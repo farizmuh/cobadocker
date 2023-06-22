@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: ntp-config
+data:
+    ntp.conf: |
+        server 0.id.pool.ntp.org
+        server 1.id.pool.ntp.org
+        server 2.id.pool.ntp.org
+        server 3.id.pool.ntp.org
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: hello-world-flask-deployment
+spec:
+    replicas: 3 # Jumlah replika yang ingin Anda jalankan
+    selector:
+        matchLabels:
+            app: hello-world-flask
+    template:
+        metadata:
+            labels:
+                app: hello-world-flask
+        spec:
+            containers:
+                - name: hello-world-flask-testing-container
+                  image: gcr.io/banded-setting-390009/hello-world-flask:lastest # Ganti dengan nama dan tag image yang ingin Anda gunakan
+                  ports:
+                      - containerPort: 8080 # Port yang akan digunakan dalam container
+                  volumeMounts:
+                      - name: ntp-volume # Nama volume yang akan digunakan untuk konfigurasi NTP
+                        mountPath: /etc/ntp # Path di dalam container untuk mount volume NTP
+                  env:
+                      - name: TZ
+                        value: "Asia/Jakarta"
+            volumes:
+                - name: ntp-volume # Nama volume yang akan digunakan untuk konfigurasi NTP
+                  configMap:
+                      name: ntp-config
+                      items:
+                          - key: ntp.conf
+                            path: ntp.conf # Nama ConfigMap yang berisi konfigurasi NTP
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: lb-hello-world-flask # Ganti dengan nama service yang diinginkan
+spec:
+    selector:
+        app: hello-world-flask # Ganti dengan label aplikasi yang sesuai
+    ports:
+        - protocol: TCP
+          port: 80 # Port yang akan diterima oleh service
+          targetPort: 8080 # Port yang diarahkan ke container
+    type: LoadBalancer
